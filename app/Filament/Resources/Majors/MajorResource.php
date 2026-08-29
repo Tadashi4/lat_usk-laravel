@@ -11,6 +11,7 @@ use App\Filament\Resources\Majors\Schemas\MajorInfolist;
 use App\Filament\Resources\Majors\Tables\MajorsTable;
 use App\Models\Major;
 use BackedEnum;
+use UnitEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -19,11 +20,13 @@ use Filament\Tables\Table;
 class MajorResource extends Resource
 {
     protected static ?string $model = Major::class;
+    protected static ?int $navigationSort = 3;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-book-open';
     protected static string|BackedEnum|null $activeNavigationIcon = 'heroicon-s-book-open';
+    protected static string|UnitEnum|null $navigationGroup = 'Student Management';
 
-    protected static ?string $recordTitleAttribute = 'id';
+    protected static ?string $recordTitleAttribute = 'name';
 
     public static function form(Schema $schema): Schema
     {

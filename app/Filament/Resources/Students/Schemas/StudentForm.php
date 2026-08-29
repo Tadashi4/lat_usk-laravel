@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Students\Schemas;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\FileUpload;
 use Filament\Schemas\Schema;
 
 class StudentForm
@@ -13,23 +14,34 @@ class StudentForm
     {
         return $schema
             ->components([
-                TextInput::make('user_id')
+                Select::make('user_id')
                     ->required()
-                    ->numeric(),
-                TextInput::make('classroom_id')
+                    ->label('Student Name')
+                    ->relationship('user', 'name'),
+                Select::make('classroom_id')
                     ->required()
-                    ->numeric(),
+                    ->label('Class')
+                    ->relationship('classroom', 'name'),
                 TextInput::make('nisn')
-                    ->required(),
+                    ->required()
+                    ->unique(ignoreRecord:true)
+                    ->validationMessages(['unique' => 'The NISN has already been registered'])
+                    ->label('NISN'),
                 TextInput::make('phone_number')
                     ->tel()
-                    ->required(),
+                    ->required()
+                    ->label('Phone Number'),
                 Select::make('gender')
+                    ->label('Gender')
                     ->options(['male' => 'Male', 'female' => 'Female'])
                     ->required(),
                 Textarea::make('address')
+                    ->label('Address')
                     ->columnSpanFull(),
-                TextInput::make('profie_picture'),
+                FileUpload::make('profile_picture')
+                    ->label('Profile Picture')
+                    ->directory('Students')
+                    ->disk('public'),
             ]);
     }
 }

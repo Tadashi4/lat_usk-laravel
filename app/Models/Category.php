@@ -4,17 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Major extends Model
+class Category extends Model
 {
     protected $fillable = [
 
     'name',
-    'code',
+    'description',
+    'image',
     'is_active'
     ];
-
-    public function classes ()
-    {
-        return $this->hasMany(Classroom::class);
-    }
 }
