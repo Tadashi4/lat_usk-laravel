@@ -20,7 +20,15 @@ class AssetReturnForm
                 Select::make('ticket_id')
                     ->required()
                     ->label('Ticket Number')
-                    ->relationship('ticket', 'ticket_number', fn($query) => $query->where('status', 'verifying'))
+                    ->relationship('ticket', 'ticket_number', function($query, $operation, $record){
+
+                    if($operation === 'create') {
+                        return $query->where('status', 'verifying');
+                    }
+                    return $query;
+                    })
+                    ->disabled(fn($operation) => $operation === 'edit')
+                    ->dehydrated()
                     ->afterStateUpdated(fn($state, $set) =>
                         $set('asset_id', Ticket::find($state)?->asset_id))
                     ->live(),

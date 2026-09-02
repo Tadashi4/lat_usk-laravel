@@ -33,9 +33,47 @@ class AssetFinesRelationManager extends RelationManager
                     ->required()
                     ->options([
                         'late' => 'Late Return',
-                        'damage' => 'Damage',
+                        'damaged' => 'Damaged',
                         'lost' => 'Lost',
-                    ]),
+                    ])
+                    ->live()
+                    ->afterStateUpdated(function ($state, $set, $livewire){
+
+                    $record = $livewire->ownerRecord;
+                    $ticket = $record->ticket;
+
+                    if(!$state || !$ticket) return;
+
+                    if($state === 'lost') {
+
+                    $set('amount', $ticket->asset?->purchase_price ?? 0);
+                    $set('notes', 'Charged 100 % of purchase price due to asset loss.');
+                    }
+
+                    elseif($state === 'late'){
+                        if(!$ticket->due_at) return;
+
+                        $due = \Illuminate\Support\Carbon::parse($ticket->due_at)->startOfDay();
+                        $returned = \Illuminate\Support\Carbon::parse($record->returned_at ?? now())->startOfDay();
+
+                        if($returned->gt($due)) {
+
+                        $days = $due->diffInDays($returned);
+
+                        $set('amount', $days * 10000);
+                        $set('notes', "late return by {$days}. Rate: IDR 10.000/Day.");
+                        }
+                        else{
+                            $set('amount', 0);
+                            $set('notes', 'No delay detected. Returned on time.');
+                        }
+                        }
+
+                        elseif($state === 'damaged'){
+                            $set('amount', 0);
+                            $set('notes', 'Please desctribe the damage and repair cost here.');
+                        }
+                    }),
 
                     TextInput::make('amount')
                     ->label('Fine Amount')
@@ -56,7 +94,18 @@ class AssetFinesRelationManager extends RelationManager
             ->recordTitleAttribute('type')
             ->columns([
                 TextColumn::make('type')
-                    ->label('Fine Type'),
+                    ->label('Fine Type')
+                    ->badge()
+                        ->color(fn(string $state): string => match ($state) {
+                            'late' => 'success',
+                            'damaged' => 'warning',
+                            'lost' => 'danger',
+                        })
+                        ->formatStateUsing(fn(string $state): string => match ($state) {
+                            'late' => 'Late',
+                            'damaged' => 'Broken',
+                            'lost' => 'Missing',
+                        }),
 
                     TextColumn::make('amount')
                     ->label('Fine Amount')

@@ -12,6 +12,7 @@ use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
+
 class TicketsTable
 {
     public static function configure(Table $table): Table
@@ -29,19 +30,54 @@ class TicketsTable
                     ->sortable(),
                 TextColumn::make('qty')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('booked_at')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('borrowed_at')
                     ->dateTime()
                     ->sortable(),
                 TextColumn::make('due_at')
                     ->date()
-                    ->sortable(),
+                    ->sortable()
+                    ->icon('heroicon-m-flag')
+                    ->iconColor(function($record){
+                        if(in_array($record->status,['booked', 'cancelled']) || !$record->due_at) return null;
+
+                        $isOverdue = $record->due_at->startOfDay()->isPast();
+                        $isLateReturn = $record->status === 'returned' && $record->returned_at?->startOfDay()->gt($record->due_at->startOfDay());
+
+                        return match(true){
+                            $record->status === 'returned' => $isLateReturn ? 'warning' : 'success',
+                            in_array($record->status, ['borrowed', 'verifying']) => $isOverdue ? 'danger' : 'success',
+                            default => null
+                        };
+                    })
+                    ->description(function($record){
+                        if(in_array($record->status,['booked', 'cancelled']) || !$record->due_at) return null;
+
+                        $due = $record->due_at->startOfDay();
+                        $now = now()->startOfDay();
+                        $return = $record->returned_at?->startOfDay();
+
+                        if ($record->status === 'returned' && $return) {
+                            $diff = $due->diffInDays($return, false);
+                            return $diff > 0 ? "Return late by {$diff} days." : "Returned on time.";
+                        }
+
+                        $diff = $now->diffInDays($due, false);
+                        return match(true){
+                            $diff < 0 => "Overdue by " .abs($diff) . "days.",
+                            $diff == 0 => 'Due today!',
+                            default => '{$diff} days remaining'
+                        };
+                    }),
                 TextColumn::make('returned_at')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()

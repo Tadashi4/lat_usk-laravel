@@ -58,4 +58,9 @@ class AssetReturn extends Model
     {
         return $this->hasMany(AssetFine::class);
     }
+
+    protected $casts = [
+        'due_at' => 'datetime',
+        'returned_at' => 'datetime',
+    ];
 }
