@@ -18,7 +18,8 @@ class ActivityLogResource extends Resource
 {
     protected static ?string $model = Activity::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-clock';
+    protected static string|BackedEnum|null $activeNavigationIcon = 'heroicon-s-clock';
 
     public static function form(Schema $schema): Schema
     {

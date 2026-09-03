@@ -4,9 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class AssetReturn extends Model
 {
+
+use LogsActivity;
+
+public function getActivitylogOptions(): LogOptions
+{
+    return LogOptions::defaults()
+    ->logAll()
+    ->logOnlyDirty();
+}
     protected $fillable = [
         'ticket_id',
         'user_id',
