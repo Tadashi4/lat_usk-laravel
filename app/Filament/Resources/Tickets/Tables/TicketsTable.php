@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\Tickets\Tables;
 
+use App\Models\AssetFine;
+use App\Models\AssetReturn;
+use Filament\Tables\Table;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
@@ -10,8 +13,9 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
-
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Illuminate\Support\Facades\DB;
 
 class TicketsTable
 {
@@ -71,7 +75,7 @@ class TicketsTable
                         return match(true){
                             $diff < 0 => "Overdue by " .abs($diff) . "days.",
                             $diff == 0 => 'Due today!',
-                            default => '{$diff} days remaining'
+                            default => "{$diff} days remaining"
                         };
                     }),
                 TextColumn::make('returned_at')
@@ -127,8 +131,8 @@ class TicketsTable
                         'status' => 'cancelled',
                     ]))->button(),
                 Action::make('verifyReturn')
-                    ->label('Verify Return')
-                    ->color('warning')
+                    ->label('Return')
+                    ->color('info')
                     ->requiresConfirmation()
                     ->visible(fn($record) => $record->status === 'borrowed')
                     ->action(fn($record) =>$record->update([
@@ -142,13 +146,85 @@ class TicketsTable
                  Action::make('completed')
                     ->label('Completed')
                     ->color('success')
-                    ->requiresConfirmation()
                     ->visible(fn($record) => $record->status === 'verifying')
-                    ->action(fn($record) =>$record->update([
-                        'status' => 'returned',
-                        'returned_at' => now(),
-                    ]))->button(),
-            ])
+                    ->schema([
+                        Select::make('condition')
+                        ->label('Asset Condition')
+                        ->required()
+                        ->options([
+                            'good' => 'Good',
+                            'damaged' => 'Broken',
+                            'lost' => 'lost'
+                        ])->default('good'),
+                        Textarea::make('notes')
+                        ->label('Notes')
+                        ->rows(3),
+                    ])
+                    ->action(function($record, array $data){
+
+                    DB::transaction(function () use ($record, $data){
+                        $returnTime = now();
+                        $qty = $record->qty;
+                        $asset = $record->asset;
+                        $price = $asset?->purchase_price ?? 0;
+
+                        //update ticket
+
+                        $record->update([
+                            'status' => 'returned',
+                            'returned_at' => $returnTime,
+                        ]);
+
+                        //create asset return
+
+                        $assetReturn = AssetReturn::create([
+                            'user_id' => $record->user_id,
+                            'asset_id' => $record->asset_id,
+                            'ticket_id' => $record->id,
+                            'qty' => $qty,
+                            'condition' => $data['condition'],
+                            'notes' => $data['notes'] ?? null,
+                            'returned_at' => $returnTime,
+                        ]);
+
+                        //late fine
+
+                        $lateDays = $record->due_at?->startOfday()->diffInDays($returnTime->startOfday(), false);
+
+                        if ($lateDays > 0){
+
+                        AssetFine::create([
+                        'asset_return_id' => $assetReturn->id,
+                        'type' => 'late',
+                        'amount' => ($price * $qty * 0.01) * $lateDays,
+                        'notes' => 'Late {$lateDays} days',
+                        ]);
+                        }
+
+                        //condition fine
+
+                        $fineRates = [
+                            'damaged' => ['type' => 'damaged', 'rate' => 0.30],
+                            'lost' => ['type' => 'lost', 'rate' => 1],
+                        ];
+
+                        if (isset($fineRates[$data['condition']])){
+
+                        $fine = $fineRates[$data['condition']];
+
+                        AssetFine::create([
+                            'asset_return_id' => $assetReturn->id,
+                            'type' => $fine['type'],
+                            'amount' => ($price * $qty) * $fine['rate'],
+                            'notes' => 'Asset' . ucfirst($data['condition']),
+                        ]);
+                    }
+                });
+            })->modalHeading('Asset Return')
+            ->modalSubmitActionLabel('Confirm Return')
+            ->modalWidth('md')
+            ->button(),
+        ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
